@@ -1,0 +1,8 @@
+numpy
+requests
+scipy
+scikit-learn
+matplotlib
+keras
+tensorflow
+GDAL
