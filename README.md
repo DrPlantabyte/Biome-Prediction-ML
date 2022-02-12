@@ -60,7 +60,7 @@ if test ! -d "$VENV_NAME"; then
 	source "$VENV_NAME"/bin/activate
 	pip install --upgrade pip
 	pip install -r "$REQ_FILE"
-	pip freeze > "$REQ_FILE"/requirements.txt
+	pip freeze > "$VENV_NAME"/requirements.txt
 	deactivate
 fi
 ```
