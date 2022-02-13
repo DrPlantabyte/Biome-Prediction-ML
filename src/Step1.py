@@ -14,11 +14,11 @@ def main():
 	data_dir = 'data'
 	username = input('Earth Data Username: ')
 	password = input('Earth Data Password: ')
-	for year in range(2017, 2018):
-		for month in range(5, 13):
+	for year in range(2015, 2018):
+		for month in range(1, 13):
 			download_GPM_L3_product('GPM_3IMERGM', '06', year, month, data_dir, username, password)
-		# download_MODIS_product('MOD21C3', '061', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
-		# download_MODIS_product('MCD12C1', '006', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
+		download_MODIS_product('MOD21C3', '061', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
+		download_MODIS_product('MCD12C1', '006', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
 	#
 	print("...Done!")
 
