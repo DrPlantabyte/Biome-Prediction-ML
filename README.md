@@ -70,6 +70,7 @@ And then I run it to make a python virtual environment with the following `requi
 numpy
 requests
 netCDF4
+h5py
 modis-tools
 scipy
 scikit-learn
