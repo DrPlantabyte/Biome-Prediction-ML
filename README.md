@@ -204,3 +204,21 @@ def main():
 	print("...Done!")
 ```
 
+# Step 2: Data cleaning
+
+Now it's time to take the data, discard anything that is poor quality or unnecesary, and then reformat it in a way that is more friendly to machine learning. As a brief reminder, my model inputs and outputs are:
+
+Inputs
+* Average yearly temperature minimum
+* Average yearly temperature maximum
+* Average annual rainfall
+* Standard deviation of monthly rainfall totals
+* (Label) IGBP classification
+
+Outputs
+* Predicted IGBP classification
+
+So the goal therefore is to calculate those values for all (or a subset) of the satellite data and save it in a table format (eg DataFrame)
+
+The first step is, of course, to open the hdf files to access the data in the first place. I start by installing [HDF View](https://www.hdfgroup.org/downloads/hdfview/) to take a look at the files with a GUI, as this is a much faster way of exploring the data structure. Then using the `h5py` module, I'm able to 
+
