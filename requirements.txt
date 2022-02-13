@@ -1,7 +1,10 @@
 numpy
 requests
+netCDF4
+modis-tools
 scipy
 scikit-learn
 matplotlib
+pandas
 keras
 tensorflow

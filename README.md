@@ -69,17 +69,80 @@ And then I run it to make a python virtual environment with the following `requi
 ```
 numpy
 requests
+netCDF4
+modis-tools
 scipy
 scikit-learn
 matplotlib
+pandas
 keras
 tensorflow
-GDAL
 ```
-
-Note that getting the GDAL library to work has many additional steps, which I will not cover here. To anyone else tasked with setting up GDAL with python, you have my sympathies.
 
 After installation is complete, I create a PyCharm project and get to work on step 1: downloading the data.
 
+# Step 1: Downloading the data
 
+While satellite data is available for download from various NASA websites, manually downloading all the files will be quite tedious. For this reason, I will be using the [requests library](https://docs.python-requests.org/en/latest/) to download the files by HTTP GET protocol.
+
+The first product to download is the [MODIS Terra+Aqua Combined Land Cover product](https://modis-land.gsfc.nasa.gov/landcover.html), which can be downloaded from the [associate USGS site](https://e4ftl01.cr.usgs.gov/MOTA/MCD12C1.006/). For simplicity's sake, I'm using the 0.05 degree Climate Modeling Grid (CMG) resolution data, which is stored in simple Mercator projection (aka "longitude/latitude") geometry. For serious work, I'd go for the finer resolutions, which are stored as tiled pieces of a sinusoidal projection (detailed description [here](https://modis-land.gsfc.nasa.gov/MODLAND_grid.html)).
+
+Browsing through the site, I find that the data is stored in HDF format, at a URL with the following structure: `https://e4ftl01.cr.usgs.gov/MOTA/MCD12C1.006/<YEAR>.01.01/MCD12C1.A2001001.006.<SOME NUMBERS>.hdf`, where <YEAR> is the year of interest and <SOME NUMBER> is a long string of numbers that is slightly different for each file. It's easy enough to scrape the full filename from the website:
+
+```python
+import requests, re
+def get_landcover_URL_for_year(year):
+	html = requests.get('https://e4ftl01.cr.usgs.gov/MOTA/MCD12C1.006/%s.01.01/' % year).content.decode('UTF-8')
+	filename = re.findall('MCD12C1.*?\\.hdf', html)[0]
+	return 'https://e4ftl01.cr.usgs.gov/MOTA/MCD12C1.006/%s.01.01/%s' % (year, filename)
+```
+
+However, a [NASA Earthdata](https://urs.earthdata.nasa.gov/users) account is required to access the data, so if I try this:
+```python
+import os, sys, re, requests
+from os import path
+def download_landcover_for_year(year):
+	download_URL = get_landcover_URL_for_year(year)
+	local_filename = path.join('data', 'landcover-%s.hdf' % year)
+	print('Downloading %s to %s...' % (download_URL, local_filename))
+	with requests.get(download_URL, stream=True) as r:
+		r.raise_for_status()
+		with open(local_filename, 'wb') as f:
+			for chunk in r.iter_content(chunk_size=2**20):
+				f.write(chunk)
+	print('...Download complete!')
+download_landcover_for_year(2002)
+```
+
+I won't get the file to download. Instead, I'll get the `requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url` error message. Fortunately, there's a new `modis-tools` Python library available vai pip which handles the messy business of scraping MODIS data for us. 
+
+```python
+import os, sys, re, requests
+from os import path
+from modis_tools.auth import ModisSession
+from modis_tools.resources import CollectionApi, GranuleApi
+from modis_tools.granule_handler import GranuleHandler
+
+def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpath, username, password):
+	os.makedirs(dest_dirpath, exist_ok=True)
+	modis_session = ModisSession(username=username, password=password)
+	# Query the MODIS catalog for collections
+	collection_client = CollectionApi(session=modis_session)
+	collections = collection_client.query(short_name=short_name, version=version)
+	granule_client = GranuleApi.from_collection(collections[0], session=modis_session)
+	granules = granule_client.query(start_date=start_date, end_date=end_date)
+	print('Downloading %s to %s...' % (short_name, dest_dirpath))
+	GranuleHandler.download_from_granules(granules, modis_session, path='data')
+	print('...Download complete!')
+
+os.makedirs('data', exist_ok=True)
+username = input('Earth Data Username: ')
+password = input('Earth Data Password: ')
+product = 'MCD12C1'
+version = '006'
+start_date = '2017-01-01'
+end_date = '2017-12-31'
+dest_dirpath = 'data'
+download_MODIS_product(product, version, start_date, end_date, dest_dirpath, username, password)
+```
 
