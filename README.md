@@ -146,3 +146,60 @@ dest_dirpath = 'data'
 download_MODIS_product(product, version, start_date, end_date, dest_dirpath, username, password)
 ```
 
+Now for the other satellite products for temperature and rainfall. I head back to the [MODIS website](https://modis-land.gsfc.nasa.gov/landcover.html) to find the land surface temperature (LST) product MOD21C3 and then peek at it in the [Earth Data browser](https://search.earthdata.nasa.gov/search) to make sure it's what I want (it is). Unfortunately, there is no precipitation product for MODIS. Instead, I need to get my data from GPM. The GPM_3IMERGM product (monthly rainfall) looks good, but it needs to be downloaded by URL (there's no equivalent of the `modis-tools` package).
+
+After a bit of frustration, I finally figured out that there is a URL redirect during authentication, thus to download a GPM file by URL:
+```python
+import os, sys, re, requests
+from os import path
+
+def download_GPM_L3_product(short_name, version, year, month, dest_dirpath, username, password):
+	http_session = requests.session()
+	if(month < 10):
+		month_str = '0'+str(month)
+	else:
+		month_str = str(month)
+	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/%s.%s/%s/3B-MO.MS.MRG.3IMERG.20130701-S000000-E235959.%s.V06B.HDF5' % (short_name, version, year, month_str)
+	http_session.auth = (username, password)
+	# note: URL gets redirected
+	redirect = http_session.request('get', src_url)
+	filename = src_url.split('/')[-1]
+	dest_filepath = path.join(dest_dirpath, filename)
+	# NOTE the stream=True parameter below
+	print('Downloading %s to %s...' % (redirect.url, dest_filepath))
+	with http_session.get(redirect.url, auth=(username, password), stream=True) as r:
+		r.raise_for_status()
+		with open(dest_filepath, 'wb') as f:
+			for chunk in r.iter_content(chunk_size=1048576):
+				f.write(chunk)
+	print('...Download complete!')
+
+data_dir = 'data'
+username = input('Earth Data Username: ')
+password = input('Earth Data Password: ')
+year = 2017
+for month in range(1, 13):
+	download_GPM_L3_product('GPM_3IMERGM', '06', year, month, data_dir, username, password)
+
+```
+
+Hooray! Data downloads!
+
+Finally, I decide to limit my data to 3 years from the start of 2015 to the end of 2017, so as not to completely fill my hard drive.
+
+```python
+def main():
+	print("Starting %s..." % sys.argv[0])
+	# find and download data
+	data_dir = 'data'
+	username = input('Earth Data Username: ')
+	password = input('Earth Data Password: ')
+	for year in range(2015, 2018):
+		for month in range(1, 13):
+			download_GPM_L3_product('GPM_3IMERGM', '06', year, month, data_dir, username, password)
+		download_MODIS_product('MOD21C3', '061', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
+		download_MODIS_product('MCD12C1', '006', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
+	#
+	print("...Done!")
+```
+

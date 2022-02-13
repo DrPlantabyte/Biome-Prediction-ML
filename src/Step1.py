@@ -1,6 +1,6 @@
 #!/usr/bin/python3.9
 
-import os, shutil, sys, re, requests, base64, numpy
+import os, shutil, sys, re, requests, base64, urllib.parse, numpy
 from os import path
 from modis_tools.auth import ModisSession
 from modis_tools.resources import CollectionApi, GranuleApi
@@ -14,11 +14,11 @@ def main():
 	data_dir = 'data'
 	username = input('Earth Data Username: ')
 	password = input('Earth Data Password: ')
-	product = 'MCD12C1'
-	version = '006'
-	start_date = '2017-01-01'
-	end_date = '2017-12-31'
-	download_MODIS_product(product, version, start_date, end_date, data_dir, username, password)
+	for year in range(2015, 2018):
+		for month in range(1, 13):
+			download_GPM_L3_product('GPM_3IMERGM', '06', year, month, data_dir, username, password)
+		download_MODIS_product('MOD21C3', '061', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
+		download_MODIS_product('MCD12C1', '006', '%s-01-01' % year, '%s-12-31' % year, data_dir, username, password)
 	#
 	print("...Done!")
 
@@ -48,6 +48,31 @@ def download_MODIS_product(short_name, version, start_date, end_date, dest_dirpa
 	print('Downloading %s to %s...' % (short_name, dest_dirpath))
 	GranuleHandler.download_from_granules(granules, modis_session, path='data')
 	print('...Download complete!')
+
+
+def download_GPM_L3_product(short_name, version, year, month, dest_dirpath, username, password):
+	# wget --load-cookies /.urs_cookies --save-cookies /root/.urs_cookies --auth-no-challenge=on --user=your_user_name --ask-password --content-disposition -i <url text file>
+	http_session = requests.session()
+	if(month < 10):
+		month_str = '0'+str(month)
+	else:
+		month_str = str(month)
+	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/%s.%s/%s/3B-MO.MS.MRG.3IMERG.20130701-S000000-E235959.%s.V06B.HDF5' % (short_name, version, year, month_str)
+	http_session.auth = (username, password)
+	# note: URL gets redirected
+	redirect = http_session.request('get', src_url)
+	filename = src_url.split('/')[-1]
+	dest_filepath = path.join(dest_dirpath, filename)
+	# NOTE the stream=True parameter below
+	print('Downloading %s to %s...' % (redirect.url, dest_filepath))
+	with http_session.get(redirect.url, auth=(username, password), stream=True) as r:
+		r.raise_for_status()
+		with open(dest_filepath, 'wb') as f:
+			for chunk in r.iter_content(chunk_size=1048576):
+				f.write(chunk)
+	print('...Download complete!')
+
+
 
 def get_landcover_URL_for_year(year):
 	html = requests.get('https://e4ftl01.cr.usgs.gov/MOTA/MCD12C1.006/%s.01.01/' % year).content.decode('UTF-8')
