@@ -78,7 +78,11 @@ matplotlib
 pandas
 keras
 tensorflow
+GDAL
+rioxarray
 ```
+
+Note that the python package for GDAL is very difficult and frustrating to install. I will not be detailing how to install GDAL here. If you're every required to get GDAL with python bindings up and running in a virtual envirnment, you have my sympathies.
 
 After installation is complete, I create a PyCharm project and get to work on step 1: downloading the data.
 
@@ -220,5 +224,34 @@ Outputs
 
 So the goal therefore is to calculate those values for all (or a subset) of the satellite data and save it in a table format (eg DataFrame)
 
-The first step is, of course, to open the hdf files to access the data in the first place. I start by installing [HDF View](https://www.hdfgroup.org/downloads/hdfview/) to take a look at the files with a GUI, as this is a much faster way of exploring the data structure. Then using the `h5py` module, I'm able to 
+The first step is, of course, to open the hdf files to access the data in the first place. I start by installing [HDF View](https://www.hdfgroup.org/downloads/hdfview/) to take a look at the files with a GUI, as this is a much faster way of exploring the data structure. Then using the `h5py` module, I'm able to see the rainfall data file structure with the following Python code:
 
+```python
+import os, sys, h5py
+from os import path
+
+def print_structure(hdf: h5py.File):
+	for key in hdf.keys():
+		_print_structure(hdf.get(key), 0)
+def _print_structure(node, indent):
+	# recursive implementation
+	print('\t'*indent, end='')
+	print(node.name)
+	if type(node) == h5py._hl.group.Group:
+		for key in node.keys():
+			_print_structure(node.get(key), indent + 1)
+	elif type(node) == h5py._hl.dataset.Dataset:
+		print('\t' * (indent+1), end='')
+		print('Dataset: dtype = %s; shape = %s; compression = %s; total bytes = %s' % (node.dtype, node.shape, node.compression, node.nbytes))
+	else:
+		# unknown type
+		print('\t' * (indent+1), end='')
+		print(type(node))
+
+data_dir = path.join('data')
+hdf_file = path.join(data_dir, '3B-MO.MS.MRG.3IMERG.20160801-S000000-E235959.08.V06B.HDF5')
+with h5py.File(hdf_file, 'r') as hdf:
+	print_structure(hdf)
+```
+
+However, the MODIS data is in HDF4 format, which is not supported by h5py.
