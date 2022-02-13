@@ -160,7 +160,7 @@ def download_GPM_L3_product(short_name, version, year, month, dest_dirpath, user
 		month_str = '0'+str(month)
 	else:
 		month_str = str(month)
-	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/%s.%s/%s/3B-MO.MS.MRG.3IMERG.20130701-S000000-E235959.%s.V06B.HDF5' % (short_name, version, year, month_str)
+	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/%s.%s/%s/3B-MO.MS.MRG.3IMERG.%s%s01-S000000-E235959.%s.V06B.HDF5' % (short_name, version, year, year, month_str, month_str)
 	http_session.auth = (username, password)
 	# note: URL gets redirected
 	redirect = http_session.request('get', src_url)
@@ -184,7 +184,7 @@ for month in range(1, 13):
 
 ```
 
-Hooray! Data downloads!
+Hooray! Data downloads! Note that for the GPM downloads to work, you must first add NASA GESDISC DATA ARCHIVE to your list of approved applications in Earth Data, otherwise teh files will contain html instead of satellite data.
 
 Finally, I decide to limit my data to 3 years from the start of 2015 to the end of 2017, so as not to completely fill my hard drive.
 
