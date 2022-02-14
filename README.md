@@ -397,5 +397,5 @@ Now remembering the model inputs listed above, the data I *actually* have is:
 * Monthly average rate of precipitation in mm/hr
 * Monthly average day and night time land surface temperature in degrees Kelvin
 * IGBP classification
-
+Thus I'll have to process the data to produce the actual inputs I want to use for training the machine learning model. And since the input data is in Mercator projection, it is overly biased towards polar data, so I'll resample it with sinusoidal projection (and I'll be down-sampling to reduce the volume of data in the interest of time).
 
