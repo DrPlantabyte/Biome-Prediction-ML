@@ -49,8 +49,29 @@ def main():
 	## precipitation dimensions: (1, 3600, 1800)
 
 	# calculate min and max temperatures
-	min_temp_map = numpy.zeros((3600,7200), dtype=numpy.float32)
-	max_temp_map = numpy.zeros_like(min_temp_map)
+	min_temp_map = None
+	max_temp_map = None
+	lst_files = [x for x in os.listdir(data_dir) if x.startswith('MOD21C3')]
+	lst_date_dict = {}
+	for f in lst_files:
+		ds: gdal.Dataset = gdal.Open(path.join(data_dir, f))
+		ddate = ds.GetMetadata_Dict()["RANGEBEGINNINGDATE"]
+		yearmo = ddate[0:4]+ddate[5:7]
+		print(yearmo)
+		lst_date_dict[yearmo] = f
+		ddate = None
+		ds = None
+	for year in range(2015, 2018):
+		for month in range(1, 13):
+			yearmo = str(year) + to2digit(month)
+			lst_filename = lst_date_dict[yearmo]
+			ds: gdal.Dataset = gdal.Open(biome_map_file)
+			daytime lst =
+	for year in range(2015, 2018):
+		for month in range(1, 13):
+			precip_filename = '3B-MO.MS.MRG.3IMERG.%s%s01-S000000-E235959.%s.V06B.HDF5' % (year, to2digit(month), to2digit(month))
+			with h5py.File(path.join(data_dir, precip_filename), 'r') as hdf:
+				precip_map = hdf.get('/Grid/precipitation')[0]
 
 
 	# sample with sinusoidal projection
@@ -68,6 +89,12 @@ def main():
 
 
 	print('...Done!')
+
+def to2digit(n):
+	if (n < 10):
+		return '0' + str(month)
+	else:
+		return str(month)
 
 def plot_data_map(data_map: numpy.ndarray, title: str, origin='lower', cmap='gist_rainbow'):
 	pyplot.clf()
