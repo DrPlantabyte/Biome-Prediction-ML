@@ -74,11 +74,12 @@ h5py
 modis-tools
 scipy
 scikit-learn
+wxPython
 matplotlib
 pandas
 keras
 tensorflow
-GDAL
+pygdal
 rioxarray
 ```
 
@@ -254,4 +255,30 @@ with h5py.File(hdf_file, 'r') as hdf:
 	print_structure(hdf)
 ```
 
+Then I'm able to look at the rainfall data with the following code:
+```python
+import os, sys, h5py, numpy
+from os import path
+
+data_dir = path.join('data')
+hdf_file = path.join(data_dir, '3B-MO.MS.MRG.3IMERG.20160801-S000000-E235959.08.V06B.HDF5')
+# note: precipitation data has units of mm/hr, and is the month-long average of per-hour rates
+with h5py.File(hdf_file, 'r') as hdf:
+	print_structure(hdf)
+	for data_type in ['precipitation', 'randomError', 'gaugeRelativeWeighting', 'probabilityLiquidPrecipitation', 'precipitationQualityIndex']:
+		data_map = hdf.get('/Grid/%s' % data_type)[0].T
+		# note: -9999.9 means "no data"
+		print(data_type, data_map.min(),'-',data_map.max())
+		pyplot.clf()
+		pyplot.imshow(data_map.clip(0,numpy.inf), origin='lower', cmap='gist_rainbow')
+		pyplot.colorbar()
+		pyplot.title(data_type)
+		pyplot.savefig('precip_map_%s.png' % data_type)
+		pyplot.show()
+```
+
 However, the MODIS data is in HDF4 format, which is not supported by h5py.
+
+Remembering the model inputs listed above, the data I *actually* have is:
+* Monthly average rate or precipitation in mm/hr
+* ...
