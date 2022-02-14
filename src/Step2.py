@@ -8,6 +8,20 @@ from osgeo import gdal
 def main():
 	print("Starting %s..." % sys.argv[0])
 	data_dir = path.join('data')
+
+	modis_file = path.join(data_dir, 'MCD12C1.A2015001.006.2018053185652.hdf')
+	data_map = get_modis_data(modis_file, 0)
+	print_modis_structure(gdal.Open(modis_file))
+	data_map = gdal.Open(modis_dataset.GetSubDatasets()[0][0]).ReadAsArray()
+	print(data_map.shape)
+	print(data_name, data_map.min(), '-', data_map.max())
+	pyplot.clf()
+	pyplot.imshow(data_map, origin='upper', cmap='gist_rainbow')
+	pyplot.colorbar()
+	pyplot.title(data_name)
+	pyplot.savefig('biome_map_%s.png' % data_name)
+	pyplot.show()
+
 	modis_file = path.join(data_dir, 'MOD21C3.A2015001.061.2021320021656.hdf')
 	modis_dataset: gdal.Dataset = gdal.Open(modis_file)
 	print_modis_structure(modis_dataset)
@@ -44,6 +58,10 @@ def main():
 			pyplot.show()
 	print('...Done!')
 
+def get_modis_data(modis_file, subset_index):
+	modis_dataset: gdal.Dataset = gdal.Open(modis_file)
+	data_map = gdal.Open(modis_dataset.GetSubDatasets()[subset_index][0]).ReadAsArray()
+	return data_map
 
 def print_modis_structure(dataset: gdal.Dataset):
 	metadata_dict = dict(dataset.GetMetadata_Dict())
