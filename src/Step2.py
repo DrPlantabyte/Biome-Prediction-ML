@@ -43,7 +43,18 @@ def main():
 		masked_data[masked_data < 0] = numpy.nan
 		plot_data_map(masked_data * (24*30), '30-day Precipitation', origin='lower', cmap='gist_rainbow')
 	'''
+
+	## cover type dimensions: [3600x7200]
+	## LST dimensions: [3600x7200]
+	## precipitation dimensions: (1, 3600, 1800)
+
+	# calculate min and max temperatures
+	min_temp_map = numpy.zeros((3600,7200), dtype=numpy.float32)
+	max_temp_map = numpy.zeros_like(min_temp_map)
+
+
 	# sample with sinusoidal projection
+	## create coordinate list
 	deg2rad = math.pi/180
 	rad2deg = 180/math.pi
 	spatial_resolution_degrees = 0.1
@@ -51,8 +62,10 @@ def main():
 	for lat in numpy.linspace(-90,90,int(180/spatial_resolution_degrees)):
 		longitudes = numpy.linspace(-180, 180, int(rad2deg*numpy.cos(lat*deg2rad)))
 		latitudes  = numpy.ones_like(longitudes) * lat
-		coords = numpy.concatenate(numpy.stack((longitudes, latitudes), axis=1))
+		coords = numpy.concatenate((coords, numpy.stack((longitudes, latitudes), axis=1)))
 	print(coords)
+	print(coords.shape)
+
 
 	print('...Done!')
 
