@@ -80,10 +80,9 @@ pandas
 keras
 tensorflow
 pygdal
-rioxarray
 ```
 
-Note that the python package for GDAL is very difficult and frustrating to install. I will not be detailing how to install GDAL here. If you're every required to get GDAL with python bindings up and running in a virtual envirnment, you have my sympathies.
+Note that the python package for GDAL is very difficult and frustrating to install. I will not be detailing how to install GDAL here (it involves installing/compiling GDAL to your system first, then installing the matching version of pygdal from pip). If you're every required to get GDAL with python bindings up and running in a virtual envirnment, you have my sympathies.
 
 After installation is complete, I create a PyCharm project and get to work on step 1: downloading the data.
 
@@ -259,6 +258,7 @@ Then I'm able to look at the rainfall data with the following code:
 ```python
 import os, sys, h5py, numpy
 from os import path
+from matplotlib import pyplot
 
 data_dir = path.join('data')
 hdf_file = path.join(data_dir, '3B-MO.MS.MRG.3IMERG.20160801-S000000-E235959.08.V06B.HDF5')
@@ -277,7 +277,36 @@ with h5py.File(hdf_file, 'r') as hdf:
 		pyplot.show()
 ```
 
-However, the MODIS data is in HDF4 format, which is not supported by h5py.
+However, the MODIS data is in HDF4 format, which is not supported by h5py. I have to use the GDAL library instead:
+```python
+import os, sys, h5py, numpy, json
+from os import path
+from matplotlib import pyplot
+from osgeo import gdal
+
+def print_modis_structure(dataset: gdal.Dataset):
+	metadata_dict = dict(dataset.GetMetadata_Dict())
+	metadata_dict['Subsets'] = dataset.GetSubDatasets()
+	print(dataset.GetDescription(), json.dumps(metadata_dict, indent="  "))
+
+data_dir = path.join('data')
+modis_file = path.join(data_dir, 'MOD21C3.A2015001.061.2021320021656.hdf')
+modis_dataset: gdal.Dataset = gdal.Open(modis_file)
+print_modis_structure(modis_dataset)
+scale_factor = 0.02
+data_name = 'Daytime LST'
+data_map = gdal.Open(modis_dataset.GetSubDatasets()[5][0]).ReadAsArray()
+print(data_map.shape)
+print(data_name, data_map.min(), '-', data_map.max())
+pyplot.clf()
+kelvin = data_map.astype(numpy.float32) * scale_factor
+kelvin[kelvin == 0] = numpy.nan
+pyplot.imshow(kelvin - 273.15, origin='upper', cmap='inferno')
+pyplot.colorbar()
+pyplot.title(data_name)
+pyplot.savefig('temperature_map_%s.png' % data_name)
+pyplot.show()
+```
 
 Remembering the model inputs listed above, the data I *actually* have is:
 * Monthly average rate or precipitation in mm/hr
