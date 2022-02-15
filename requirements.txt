@@ -1,9 +1,11 @@
 numpy
 requests
 netCDF4
+h5py
 modis-tools
 scipy
 scikit-learn
+wxPython
 matplotlib
 pandas
 keras

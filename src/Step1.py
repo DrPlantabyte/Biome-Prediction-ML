@@ -23,8 +23,8 @@ def main():
 	print("...Done!")
 
 def download_landcover_for_year(year, http_session):
-	#download_URL = get_landcover_URL_for_year(year)
-	download_URL = 'https://e4ftl01.cr.usgs.gov//MODV6_Cmp_C/MOTA/MCD12C1.006/2018.01.01/MCD12C1.A2018001.006.2019200161458.hdf'
+	download_URL = get_landcover_URL_for_year(year)
+	#download_URL = 'https://e4ftl01.cr.usgs.gov//MODV6_Cmp_C/MOTA/MCD12C1.006/2018.01.01/MCD12C1.A2018001.006.2019200161458.hdf'
 	local_filename = path.join('data', 'landcover-%s.hdf' % year)
 	print('Downloading %s to %s...' % (download_URL, local_filename))
 	with http_session.get(download_URL, stream=True) as r:
@@ -57,7 +57,7 @@ def download_GPM_L3_product(short_name, version, year, month, dest_dirpath, user
 		month_str = '0'+str(month)
 	else:
 		month_str = str(month)
-	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/%s.%s/%s/3B-MO.MS.MRG.3IMERG.20130701-S000000-E235959.%s.V06B.HDF5' % (short_name, version, year, month_str)
+	src_url = 'https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/%s.%s/%s/3B-MO.MS.MRG.3IMERG.%s%s01-S000000-E235959.%s.V06B.HDF5' % (short_name, version, year, year, month_str, month_str)
 	http_session.auth = (username, password)
 	# note: URL gets redirected
 	redirect = http_session.request('get', src_url)
