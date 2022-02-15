@@ -566,4 +566,4 @@ save_pickle(path.join(data_dir, 'data_table.pickle'), data_table)
 print(data_table)
 ```
 
-
+Excellent! Step 2 is done! Now I can train my model with the data saved in `data/data_table.pickle`.
