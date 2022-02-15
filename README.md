@@ -609,7 +609,8 @@ y_data = numpy.asarray(data_table['Classification (IGBP code)'])
 scaling_vector_slope  = normalizer.data_range_
 scaling_vector_offset = normalizer.data_min_
 print('normalizer vectors [slope offset]:\n', numpy.stack((scaling_vector_slope, scaling_vector_offset), axis=1))
-save_pickle(path.join(data_dir, 'normalizer.pickle'), normalizer)
+save_pickle(path.join(model_dir, 'normalizer.pickle'), normalizer)
+print('x_data.shape == %s\ty_data.shape == %s' % (x_data.shape, y_data.shape))
 ```
 
 Next, randomly split the data into training and testing (I'll use an 80%:20% split here):
@@ -619,12 +620,91 @@ import numpy
 row_count = x_data.shape[0]
 indices = numpy.indices([row_count])[0]
 numpy.random.shuffle(indices)
-x_training = x_data.take(indices[0:int(0.80*row_count)])
-y_training = y_data.take(indices[0:int(0.80*row_count)])
-x_testing = x_data.take(indices[int(0.80*row_count):row_count])
-y_testing = y_data.take(indices[int(0.80*row_count):row_count])
+x_training = x_data.take(indices[0:int(0.80*row_count)], axis=0)
+y_training = y_data.take(indices[0:int(0.80*row_count)], axis=0)
+x_testing = x_data.take(indices[int(0.80*row_count):row_count], axis=0)
+y_testing = y_data.take(indices[int(0.80*row_count):row_count], axis=0)
 ```
- Finally, build and train the model:
- ```python
- 
- ```
+
+Finally, time to build and train the model. I opt for the Keras sequential model with three layers of dense networks, just because this is one of the easier types of machine learning models to work with. If I revisit this to fine-tune the model, I could use a different kin of model, add more layers, add different kinds of layers, and change the parameters. For now, though, let's keep it simple:
+```python
+import os, sys, numpy, pickle
+from pandas import DataFrame
+from os import path
+from sklearn.preprocessing import MinMaxScaler
+from matplotlib import pyplot
+import tensorflow as tf
+from tensorflow import keras
+
+model = keras.models.Sequential([
+keras.layers.Dense(300, activation="relu", input_shape=(4,)),
+keras.layers.Dense(100, activation="relu"),
+keras.layers.Dense(17+1, activation="softmax") # +1 because Y data is 1-indexed instead of 0-indexed
+])
+print('input shape:', model.input_shape)
+print('output shape:', model.output_shape)
+model.build()
+print(model.summary())
+
+model.compile(
+loss=keras.losses.sparse_categorical_crossentropy,
+optimizer=keras.optimizers.SGD(learning_rate=0.03),
+metrics=['accuracy']
+)
+
+print('Starting to train...')
+print('x_training.shape == %s\ty_training.shape == %s' % (x_training.shape, y_training.shape))
+history = model.fit(x_training, y_training, batch_size=100, epochs=100, validation_split=0.1)
+print('...training done!')
+# see the evolution of the model
+DataFrame(history.history).plot()
+pyplot.grid(True)
+#pyplot.gca().set_ylim(0,1)
+pyplot.xlabel("epoch")
+pyplot.show()
+```
+
+Success! But how good is the model? Enter teh test data:
+```python
+test = model.evaluate(x_testing, y_testing) # returns loss, metrics...
+print('Accuracy on test data: %.2f%%' % (100*test[1]))
+```
+
+The bottom line: 54.15% percent accurate. That's pretty bad, but not surprising, as I already know that biomes have more important environmental inpute than temperature and rainfall. But I'm not aiming for accurate in this project, it's just for fun. So let's give it a test using the weather of San Diego where I grew up:
+```python
+igbp_names = ['ERROR', 'Evergreen needleleaf forest', 'Evergreen broadleaf forest', 'Deciduous needleleaf forest',
+				  'Deciduous broadleaf forest', 'Mixed forest', 'Closed shrubland', 'Open shrubland', 'Woody savanna',
+				  'Savanna', 'Grassland', 'Permanent wetland', 'Cropland', 'Urban and built-up landscape',
+				  'Cropland/natural vegetation mosaics', 'Snow and ice', 'Barren', 'Water bodies']
+
+print("Test the prediction model:")
+T_min = float(input("Enter min temperature (C): "))
+T_max = float(input("Enter max temperature (C): "))
+rain = float(input("Enter annual rainfall (mm): "))
+rain_dev = float(input("Enter rainfall std dev (% of average): %"))
+x = normalizer.transform([numpy.asarray([T_min, T_max, rain, rain_dev])])
+class_predictions = model.predict([x])[0]
+print(class_predictions.round(2))
+predicted_biome = numpy.argmax(class_predictions)
+print("Predicted IGBP code: %s (%s)" % (predicted_biome, igbp_names[predicted_biome]))
+
+>>>> Test the prediction model:
+>>>> Enter min temperature (C): 5
+>>>> Enter max temperature (C): 40
+>>>> Enter annual rainfall (mm): 200
+>>>> Enter rainfall std dev (% of average): %50
+[0.   0.   0.   0.   0.   0.   0.   0.01 0.5  0.   0.   0.02 0.   0.04
+0.   0.   0.   0.43]
+Predicted IGBP code: 8 (Woody savanna)
+```
+
+Woody savanna is actually pretty close to the chaparrel of southern California, so it's a good prediction. To briefly explain how I read the model, the output of the model is an array of probabilities for each IGBP classification. Thus the array index with the highest probability is the predicted classification (selected using `numpy.argmax()`). Index 0 in this case is unused, since the IGBP codes start at 1, not zero.
+
+To visualize the predictions, I make a number of plots with gradients of temperature and rainfall. The result looks pretty cool:
+TODO: figure goes here
+
+Mission accomplished!
+
+# Epilog
+
+I made this project to demonstrate the use of machine learning with satellite data. It took me about a day's worth of work for each step, and I'm only scratching the surface of satellite products and machine learning. You are welcome to use my project as the starting point for your own machine learning adventures, and I hope that my example code and brief explanations help you with the tricky business of data engineering and training. Enjoy!

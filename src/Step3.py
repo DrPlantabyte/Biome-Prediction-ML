@@ -51,13 +51,13 @@ def main():
 
 	model.compile(
 		loss=keras.losses.sparse_categorical_crossentropy,
-		optimizer=keras.optimizers.SGD(learning_rate=0.01),
+		optimizer=keras.optimizers.SGD(learning_rate=0.03),
 		metrics=['accuracy']
 	)
 
 	print('Starting to train...')
 	print('x_training.shape == %s\ty_training.shape == %s' % (x_training.shape, y_training.shape))
-	history = model.fit(x_training, y_training, batch_size=100, epochs=30, validation_split=0.1)
+	history = model.fit(x_training, y_training, batch_size=100, epochs=100, validation_split=0.1)
 	print('...training done!')
 	# see the evolution of the model
 	DataFrame(history.history).plot()
@@ -77,16 +77,16 @@ def main():
 				  'Savanna', 'Grassland', 'Permanent wetland', 'Cropland', 'Urban and built-up landscape',
 				  'Cropland/natural vegetation mosaics', 'Snow and ice', 'Barren', 'Water bodies']
 
-	# print("Test the prediction model:")
-	# T_min = float(input("Enter min temperature (C): "))
-	# T_max = float(input("Enter max temperature (C): "))
-	# rain = float(input("Enter annual rainfall (mm): "))
-	# rain_dev = float(input("Enter rainfall std dev (% of average): %"))
-	# x = normalizer.transform([numpy.asarray([T_min, T_max, rain, rain_dev])])
-	# class_predictions = model.predict([x])[0]
-	# print(class_predictions.round(2))
-	# predicted_biome = numpy.argmax(class_predictions)
-	# print("Predicted IGBP code: %s (%s)" % (predicted_biome, igbp_names[predicted_biome]))
+	print("Test the prediction model:")
+	T_min = float(input("Enter min temperature (C): "))
+	T_max = float(input("Enter max temperature (C): "))
+	rain = float(input("Enter annual rainfall (mm): "))
+	rain_dev = float(input("Enter rainfall std dev (% of average): %"))
+	x = normalizer.transform([numpy.asarray([T_min, T_max, rain, rain_dev])])
+	class_predictions = model.predict([x])[0]
+	print(class_predictions.round(2))
+	predicted_biome = numpy.argmax(class_predictions)
+	print("Predicted IGBP code: %s (%s)" % (predicted_biome, igbp_names[predicted_biome]))
 
 	rainfalls = [100, 500, 1000]
 	rainfall_variations = [10, 25, 50]
