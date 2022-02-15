@@ -36,8 +36,7 @@ Therefore my prediction model will only use easily predictable inputs: average y
 My strategy for building this biome prediction model is as follows:
 1. Download land cover classification, temperature, and rainfall data from NASA 
 2. Clean the data to put everything on the same scale and omit locations with missing data
-3. Train a classification node network, using 80% of data pixels for training and 20% for validation
-4. Use the trained model to make a graph of biome classification as a function of min/max temp & rainfall
+3. Train a classification node network, using 80% of data pixels for training and 20% for validation, then use the trained model to make a graph of biome classification as a function of min/max temp & rainfall
 
 # Step 0: Setup
 
@@ -82,11 +81,12 @@ tensorflow
 pygdal
 ```
 
-Note that the python package for GDAL is very difficult and frustrating to install. I will not be detailing how to install GDAL here (it involves installing/compiling GDAL to your system first, then installing the matching version of pygdal from pip). If you're every required to get GDAL with python bindings up and running in a virtual envirnment, you have my sympathies.
+Note that the python package for GDAL is very difficult and frustrating to install. I will not be detailing how to install GDAL here (it involves installing/compiling GDAL to your system first, then installing the matching version of pygdal from pip). If you're ever required to get GDAL with python bindings up and running in a virtual envirnment, you have my sympathies.
 
 After installation is complete, I create a PyCharm project and get to work on step 1: downloading the data.
 
 # Step 1: Downloading the data
+[Step 1 complete source code](https://github.com/DrPlantabyte/Biome-Prediction-Tensor/blob/main/src/Step1.py)
 
 While satellite data is available for download from various NASA websites, manually downloading all the files will be quite tedious. For this reason, I will be using the [requests library](https://docs.python-requests.org/en/latest/) to download the files by HTTP GET protocol.
 
@@ -209,6 +209,7 @@ def main():
 ```
 
 # Step 2: Data cleaning
+[Step 2 complete source code](https://github.com/DrPlantabyte/Biome-Prediction-Tensor/blob/main/src/Step2.py)
 
 Now it's time to take the data, discard anything that is poor quality or unnecesary, and then reformat it in a way that is more friendly to machine learning. As a brief reminder, my model inputs and outputs are:
 
@@ -275,6 +276,8 @@ with h5py.File(hdf_file, 'r') as hdf:
 		pyplot.savefig('precip_map_%s.png' % data_type)
 		pyplot.show()
 ```
+
+![precip_map_precipitation](https://user-images.githubusercontent.com/1922739/154018697-6be6e150-dd48-48ca-8a68-53f8bd3452d1.png)
 
 However, the MODIS data is in HDF4 format, which is not supported by h5py. I have to use the GDAL library instead:
 ```python
@@ -393,13 +396,20 @@ with h5py.File(sample_rainfall_file, 'r') as hdf:
 
 Note that to close a GDAL data file, you set the dataset variable to `None`. This is not a common resource management pattern in Python, but it's best not to fight the GDAL library.
 
+Here's what the data looks like:
+
+![daytime land surface temperature](https://user-images.githubusercontent.com/1922739/154018949-d421d56c-d286-46df-b3c7-e6f1d0cecfc1.png)
+![classification](https://user-images.githubusercontent.com/1922739/154019025-05fa2579-bdff-4f10-acc9-3003c52f8e99.png)
+
+
 Now remembering the model inputs listed above, the data I *actually* have is:
 * Monthly average rate of precipitation in mm/hr
 * Monthly average day and night time land surface temperature in degrees Kelvin
 * IGBP classification
+
 Thus I'll have to process the data to produce the actual inputs I want to use for training the machine learning model.
 
-But first, since satellite data processing is rather time consuming, I add a file cashe using Python's `pickle` package to save the data after I process it so that subsequent runs take much less time:
+But first, since satellite data processing is rather time consuming, I add a file cache using Python's `pickle` package to save the data after I process it so that subsequent runs take much less time:
 
 ```python
 import pickle
@@ -518,6 +528,12 @@ plot_data_map(biome_map, 'classification', origin='upper', cmap='jet')
 ```
 
 *Ahhh...* Yes, I love the smell of good clean data in the morning!
+	
+![Min temperature](https://user-images.githubusercontent.com/1922739/154019297-97fbb3db-b9f9-4bc9-ab69-1e4ab9ab53b8.png)
+![Max temperature](https://user-images.githubusercontent.com/1922739/154021220-00437556-7840-42ae-a0c6-060179528100.png)
+![Ave rainfall](https://user-images.githubusercontent.com/1922739/154021253-da1c40a3-6c01-4df9-8ec4-fbb48e3291c0.png)
+![Rainfall std dev](https://user-images.githubusercontent.com/1922739/154019381-94103a9c-b458-40d7-8676-a6be3f2e4431.png)
+
 
 But we're not quite done yet. The above procedure produces maps of the relevant data, but the machine learning algorithms expect tables of data. Furthermore, the input data is in Mercator projection so it is overly biased towards polar data. Thus I'll resample it with sinusoidal projection (and I'll be down-sampling to reduce the volume of data in the interest of time), storing the sampled data as a linearized table instead of an image. Easy enough:
 
@@ -569,6 +585,7 @@ print(data_table)
 Excellent! Step 2 is done! Now I can train my model with the data saved in `data/data_table.pickle`.
 
 # Step 3: Train the machine
+[Step 3 complete source code](https://github.com/DrPlantabyte/Biome-Prediction-Tensor/blob/main/src/Step3.py)
 
 Alright! Time for the main course!
 
@@ -664,13 +681,18 @@ pyplot.xlabel("epoch")
 pyplot.show()
 ```
 
-Success! But how good is the model? Enter teh test data:
+Success! 
+
+![training-100-epochs](https://user-images.githubusercontent.com/1922739/154019501-135ceada-973b-4fe8-950c-4bcdeee2927d.png)
+
+	
+But how good is the model? Enter the test data:
 ```python
 test = model.evaluate(x_testing, y_testing) # returns loss, metrics...
 print('Accuracy on test data: %.2f%%' % (100*test[1]))
 ```
 
-The bottom line: 54.15% percent accurate. That's pretty bad, but not surprising, as I already know that biomes have more important environmental inpute than temperature and rainfall. But I'm not aiming for accurate in this project, it's just for fun. So let's give it a test using the weather of San Diego where I grew up:
+The bottom line: 54.15% percent accurate. That's pretty bad, but not surprising, as I already know that biomes have more important environmental inputs than temperature and rainfall. But I'm not aiming for accurate in this project, it's just for fun. So let's give it a test using the weather of San Diego where I grew up:
 ```python
 igbp_names = ['ERROR', 'Evergreen needleleaf forest', 'Evergreen broadleaf forest', 'Deciduous needleleaf forest',
 				  'Deciduous broadleaf forest', 'Mixed forest', 'Closed shrubland', 'Open shrubland', 'Woody savanna',
@@ -701,7 +723,8 @@ Predicted IGBP code: 8 (Woody savanna)
 Woody savanna is actually pretty close to the chaparrel of southern California, so it's a good prediction. To briefly explain how I read the model, the output of the model is an array of probabilities for each IGBP classification. Thus the array index with the highest probability is the predicted classification (selected using `numpy.argmax()`). Index 0 in this case is unused, since the IGBP codes start at 1, not zero.
 
 To visualize the predictions, I make a number of plots with gradients of temperature and rainfall. The result looks pretty cool:
-TODO: figure goes here
+![results-100-epochs](https://user-images.githubusercontent.com/1922739/154019560-230eff8e-6bb0-47d3-9c1d-8c020d4e866f.png)
+
 
 Mission accomplished!
 
