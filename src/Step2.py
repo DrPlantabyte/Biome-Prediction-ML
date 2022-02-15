@@ -1,6 +1,6 @@
 #!/usr/bin/python3.9
 
-import os, sys, h5py, numpy, json, math
+import os, sys, h5py, numpy, json, math, pickle
 from os import path
 from matplotlib import pyplot
 from osgeo import gdal
@@ -35,6 +35,7 @@ def main():
 	# note: precipitation data has units of mm/hr, and is the month-long average of per-hour rates
 	with h5py.File(sample_rainfall_file, 'r') as hdf:
 		print_structure(hdf)
+		# ['precipitation', 'randomError', 'gaugeRelativeWeighting', 'probabilityLiquidPrecipitation', 'precipitationQualityIndex']
 		data_type = 'precipitation'
 		data_map = hdf.get('/Grid/%s' % data_type)[0].T
 		# note: -9999.9 means "no data"
@@ -49,29 +50,93 @@ def main():
 	## precipitation dimensions: (1, 3600, 1800)
 
 	# calculate min and max temperatures
-	min_temp_map = None
-	max_temp_map = None
-	lst_files = [x for x in os.listdir(data_dir) if x.startswith('MOD21C3')]
-	lst_date_dict = {}
-	for f in lst_files:
-		ds: gdal.Dataset = gdal.Open(path.join(data_dir, f))
-		ddate = ds.GetMetadata_Dict()["RANGEBEGINNINGDATE"]
-		yearmo = ddate[0:4]+ddate[5:7]
-		print(yearmo)
-		lst_date_dict[yearmo] = f
-		ddate = None
-		ds = None
-	for year in range(2015, 2018):
-		for month in range(1, 13):
-			yearmo = str(year) + to2digit(month)
-			lst_filename = lst_date_dict[yearmo]
-			ds: gdal.Dataset = gdal.Open(biome_map_file)
-			daytime lst =
-	for year in range(2015, 2018):
-		for month in range(1, 13):
-			precip_filename = '3B-MO.MS.MRG.3IMERG.%s%s01-S000000-E235959.%s.V06B.HDF5' % (year, to2digit(month), to2digit(month))
-			with h5py.File(path.join(data_dir, precip_filename), 'r') as hdf:
-				precip_map = hdf.get('/Grid/precipitation')[0]
+	min_temp_map = load_pickle(path.join(data_dir, 'min_temp_map.pickle'))
+	max_temp_map = load_pickle(path.join(data_dir, 'max_temp_map.pickle'))
+	if min_temp_map is None or max_temp_map is None:
+		min_temp_map = numpy.zeros((3600,7200), dtype=numpy.float32)
+		max_temp_map = numpy.zeros_like(min_temp_map)
+		lst_files = [x for x in os.listdir(data_dir) if x.startswith('MOD21C3')]
+		lst_date_dict = {}
+		for f in lst_files:
+			ds: gdal.Dataset = gdal.Open(path.join(data_dir, f))
+			ddate = ds.GetMetadata_Dict()["RANGEBEGINNINGDATE"]
+			yearmo = ddate[0:4]+ddate[5:7]
+			print(yearmo)
+			lst_date_dict[yearmo] = f
+			ddate = None
+			ds = None
+		count = 0
+		for year in range(2015, 2018):
+			print('processing year %s temperature...' % year)
+			count += 1
+			annual_max_temp_map = None
+			annual_min_temp_map = None
+			for month in range(1, 13):
+				print('\tMonth %s...' % month)
+				yearmo = str(year) + to2digit(month)
+				lst_filename = lst_date_dict[yearmo]
+				ds: gdal.Dataset = gdal.Open(path.join(data_dir, lst_filename))
+				daytime_lst = get_modis_data(ds, 5).astype(numpy.float32) * 0.02
+				daytime_lst[daytime_lst < 150] = numpy.nan # remove bad values
+				nighttime_lst = get_modis_data(ds, 6).astype(numpy.float32) * 0.02
+				nighttime_lst[nighttime_lst < 150] = numpy.nan
+				if annual_max_temp_map is None:
+					annual_max_temp_map = daytime_lst
+				if annual_min_temp_map is None:
+					annual_min_temp_map = nighttime_lst
+				annual_max_temp_map = numpy.nanmax((annual_max_temp_map, daytime_lst, nighttime_lst), axis=0)
+				annual_min_temp_map = numpy.nanmin((annual_min_temp_map, daytime_lst, nighttime_lst), axis=0)
+				del daytime_lst
+				del nighttime_lst
+				ds = None
+				del ds
+			min_temp_map = min_temp_map + annual_min_temp_map
+			max_temp_map = max_temp_map + annual_max_temp_map
+		min_temp_map = min_temp_map / count
+		max_temp_map = max_temp_map / count
+		save_pickle(path.join(data_dir, 'min_temp_map.pickle'), min_temp_map)
+		save_pickle(path.join(data_dir, 'max_temp_map.pickle'), max_temp_map)
+	plot_data_map(min_temp_map-273.15, 'Min temperature', origin='upper')
+	plot_data_map(max_temp_map-273.15, 'Max temperature', origin='upper')
+
+	# calculate average and std dev of rainfall
+	ave_precip_map = load_pickle(path.join(data_dir, 'ave_precip_map.pickle'))
+	stdev_precip_map = load_pickle(path.join(data_dir, 'stdev_precip_map.pickle'))
+	if ave_precip_map is None or stdev_precip_map is None:
+		precip_time_series = None
+		for year in range(2015, 2018):
+			print('processing year %s rainfall...' % year)
+			for month in range(1, 13):
+				print('\tMonth %s...' % month)
+				precip_filename = '3B-MO.MS.MRG.3IMERG.%s%s01-S000000-E235959.%s.V06B.HDF5' % (year, to2digit(month), to2digit(month))
+				with h5py.File(path.join(data_dir, precip_filename), 'r') as hdf:
+					## correct to same orientation as modis data
+					precip_map = numpy.flip(hdf.get('/Grid/precipitation')[0].T, axis=0).astype(numpy.float32)
+					#precip_map = numpy.flip(hdf.get('/Grid/gaugeRelativeWeighting')[0].T, axis=0).astype(numpy.float32)
+					precip_map[precip_map < 0] = numpy.nan
+					precip_map = precip_map * (24 * 365.24/12) # convert to monthly total
+					if precip_time_series is None:
+						precip_time_series = precip_map
+					elif len(precip_time_series.shape) == 2:
+						#
+						precip_time_series = numpy.stack((precip_time_series, precip_map), axis=0)
+					else:
+						precip_time_series = numpy.concatenate((precip_time_series, [precip_map]))
+		ave_precip_map = numpy.mean(precip_time_series, axis=0)
+		stdev_precip_map = numpy.std(precip_time_series, axis=0)
+		save_pickle(path.join(data_dir, 'ave_precip_map.pickle'), ave_precip_map)
+		save_pickle(path.join(data_dir, 'stdev_precip_map.pickle'), stdev_precip_map)
+	plot_data_map(ave_precip_map, 'Ave rainfall', origin='upper')
+	plot_data_map(stdev_precip_map, 'Rainfall std dev', origin='upper')
+
+	# retrieve biomes from 2017
+	biome_map_file = path.join(data_dir, 'MCD12C1.A2017001.006.2019192025407.hdf')
+	biome_map_ds = gdal.Open(biome_map_file)
+	biome_map = numpy.copy(get_modis_data(biome_map_ds, 0))
+	biome_map_ds = None
+	del biome_map_ds
+
+	plot_data_map(biome_map, 'classification', origin='upper')
 
 
 	# sample with sinusoidal projection
@@ -79,22 +144,35 @@ def main():
 	deg2rad = math.pi/180
 	rad2deg = 180/math.pi
 	spatial_resolution_degrees = 0.1
-	coords = numpy.asarray([[0.0,0.0]])
 	for lat in numpy.linspace(-90,90,int(180/spatial_resolution_degrees)):
+		biome_row = int(lat * 10)
+		lst_row = int(lat * 10)
+		precip_row = int(lat * 10)
 		longitudes = numpy.linspace(-180, 180, int(rad2deg*numpy.cos(lat*deg2rad)))
-		latitudes  = numpy.ones_like(longitudes) * lat
-		coords = numpy.concatenate((coords, numpy.stack((longitudes, latitudes), axis=1)))
-	print(coords)
-	print(coords.shape)
+		biome_cols = (longitudes * 10).astype(dtype=numpy.uint32)
+		lst_cols = (longitudes * 10).astype(dtype=numpy.uint32)
+		precip_cols = (longitudes * 10).astype(dtype=numpy.uint32)
 
 
 	print('...Done!')
 
+def load_pickle(filepath):
+	if path.exists(filepath):
+		with open(filepath, 'rb') as fin:
+			return pickle.load(fin)
+	else:
+		return None
+
+def save_pickle(filepath, data):
+	with open(filepath, 'wb') as fout:
+		pickle.dump(data, fout)
+
+
 def to2digit(n):
 	if (n < 10):
-		return '0' + str(month)
+		return '0' + str(n)
 	else:
-		return str(month)
+		return str(n)
 
 def plot_data_map(data_map: numpy.ndarray, title: str, origin='lower', cmap='gist_rainbow'):
 	pyplot.clf()
