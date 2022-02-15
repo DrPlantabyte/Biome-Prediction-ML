@@ -77,34 +77,52 @@ def main():
 				  'Savanna', 'Grassland', 'Permanent wetland', 'Cropland', 'Urban and built-up landscape',
 				  'Cropland/natural vegetation mosaics', 'Snow and ice', 'Barren', 'Water bodies']
 
-	print("Test the prediction model:")
-	T_min = float(input("Enter min temperature (C): "))
-	T_max = float(input("Enter max temperature (C): "))
-	rain = float(input("Enter annual rainfall (mm): "))
-	rain_dev = float(input("Enter rainfall std dev (% of average): %"))
-	x = normalizer.transform([numpy.asarray([T_min, T_max, rain, rain_dev])])
-	class_predictions = model.predict([x])[0]
-	print(class_predictions.round(2))
-	predicted_biome = numpy.argmax(class_predictions)
-	print("Predicted IGBP code: %s (%s)" % (predicted_biome, igbp_names[predicted_biome]))
+	# print("Test the prediction model:")
+	# T_min = float(input("Enter min temperature (C): "))
+	# T_max = float(input("Enter max temperature (C): "))
+	# rain = float(input("Enter annual rainfall (mm): "))
+	# rain_dev = float(input("Enter rainfall std dev (% of average): %"))
+	# x = normalizer.transform([numpy.asarray([T_min, T_max, rain, rain_dev])])
+	# class_predictions = model.predict([x])[0]
+	# print(class_predictions.round(2))
+	# predicted_biome = numpy.argmax(class_predictions)
+	# print("Predicted IGBP code: %s (%s)" % (predicted_biome, igbp_names[predicted_biome]))
 
 	rainfalls = [100, 500, 1000]
 	rainfall_variations = [10, 25, 50]
 	min_temps = numpy.linspace(-20, 50, 71)
 	max_temps = numpy.linspace(-20, 50, 71)
 
-	fig, axs = pyplot.subplots(3, 3)
 	def predictions(rainfall, rain_var):
 		L = len(max_temps)
-		df = DataFrame(zip([min_temps, max_temps,[rainfall]*L, [rain_var]*L]), columns=data_table.columns[:-1])
+		df = DataFrame(zip(min_temps, max_temps,[rainfall]*L, [rain_var]*L), columns=data_table.columns[:-1])
 		xd = normalizer.transform(df)
-		preds = numpy.argmax(model.predict(xd), axis=0)
-		for pt in preds:
+		results = model.predict(xd)
+		print(results.shape)
+		preds = numpy.argmax(results, axis=1)
+		print(preds.shape)
+		series = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
+		for i in range(0,len(max_temps)):
+			p=preds[i]
+			if max_temps[i] < min_temps[i]: continue # illogical data
+			print(p)
+			series[p].append([min_temps[i], max_temps[i]])
+		return series
 
 
-
-
-	fig.show()
+	fig, axs = pyplot.subplots(3, 3)
+	for plot_row in range(0,3):
+		for plot_col in range(0, 3):
+			ax = axs[plot_row][plot_col]
+			data_series = predictions(rainfalls[plot_row], rainfall_variations[plot_col])
+			for i in range(0,18):
+				if len(data_series[i]) == 0: continue
+				darr = numpy.asarray(data_series[i])
+				ax.scatter(darr[:,0], darr[:,1], label=igbp_names[i])
+			ax.grid(True)
+			ax.legend()
+			ax.title('Rainfall = %s (var = %s)' % (,))
+	pyplot.show()
 
 
 
