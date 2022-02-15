@@ -94,19 +94,23 @@ def main():
 	max_temps = numpy.linspace(-20, 50, 71)
 
 	def predictions(rainfall, rain_var):
-		L = len(max_temps)
-		df = DataFrame(zip(min_temps, max_temps,[rainfall]*L, [rain_var]*L), columns=data_table.columns[:-1])
+		mgrid = numpy.array(numpy.meshgrid(min_temps,max_temps)).T.reshape(-1,2)
+		tmin = mgrid[:,0]
+		tmax = mgrid[:,1]
+		L = len(tmax)
+		df = DataFrame(zip(tmin, tmax, [rainfall]*L, [rain_var]*L), columns=data_table.columns[:-1])
 		xd = normalizer.transform(df)
+		uxd = normalizer.inverse_transform(xd)
 		results = model.predict(xd)
 		print(results.shape)
 		preds = numpy.argmax(results, axis=1)
-		print(preds.shape)
 		series = [[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[],[]]
-		for i in range(0,len(max_temps)):
+		for i in range(0,len(preds)):
 			p=preds[i]
-			if max_temps[i] < min_temps[i]: continue # illogical data
-			print(p)
-			series[p].append([min_temps[i], max_temps[i]])
+			_tmin = uxd[i][0]
+			_tmax = uxd[i][1]
+			if _tmax < _tmin: continue # illogical data
+			series[p].append([_tmin, _tmax])
 		return series
 
 
@@ -121,7 +125,9 @@ def main():
 				ax.scatter(darr[:,0], darr[:,1], label=igbp_names[i])
 			ax.grid(True)
 			ax.legend()
-			ax.title('Rainfall = %s (var = %s)' % (,))
+			ax.title.set_text('Rainfall = %s mm/yr (+/-%s%%)' % (rainfalls[plot_row], rainfall_variations[plot_col]))
+			if plot_row == 2: ax.set_xlabel('Min Temp. (C)')
+			if plot_col == 0: ax.set_ylabel('Max Temp. (C)')
 	pyplot.show()
 
 
