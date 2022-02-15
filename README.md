@@ -567,3 +567,64 @@ print(data_table)
 ```
 
 Excellent! Step 2 is done! Now I can train my model with the data saved in `data/data_table.pickle`.
+
+# Step 3: Train the machine
+
+Alright! Time for the main course!
+
+The first thing to do is to normalize the data to a range of approximately 0 to 1, because machine learning models learn faster with normalized data (for reasons I won't go into here). 
+
+I take a peak at the data with the following code:
+```python
+import os, sys, numpy, pickle
+from pandas import DataFrame
+from os import path
+
+data_dir = path.join('data')
+
+data_table: DataFrame = load_pickle(path.join(data_dir, 'data_table.pickle'))
+for col in data_table.columns:
+	col_data = data_table[col]
+	print('%s\t[%s, %s]' % (col, numpy.min(col_data), numpy.max(col_data)))
+```
+which prints:
+```
+Temperature Min (C)	[-45.863327, 28.910004]
+Temperature Max (C)	[-33.58333, 40.070007]
+Annual Rainfall (mm/yr)	[1.2830898, 6305.9707]
+Monthly Rainfall Std. Dev. (% mean)	[19.385046, 420.88327]
+Classification (IGBP code)	[1, 17]
+```
+
+I'm going to use the `MinMaxScaler` from `sklearn.preprocessing`. The `sklearn` proprocessing methods can be a bit fidgety, so always check your work:
+```python
+import os, sys, numpy, pickle
+from pandas import DataFrame
+from os import path
+from sklearn.preprocessing import MinMaxScaler
+
+normalizer = MinMaxScaler()
+x_data = normalizer.fit_transform(data_table.drop('Classification (IGBP code)', axis=1))
+y_data = numpy.asarray(data_table['Classification (IGBP code)'])
+scaling_vector_slope  = normalizer.data_range_
+scaling_vector_offset = normalizer.data_min_
+print('normalizer vectors [slope offset]:\n', numpy.stack((scaling_vector_slope, scaling_vector_offset), axis=1))
+save_pickle(path.join(data_dir, 'normalizer.pickle'), normalizer)
+```
+
+Next, randomly split the data into training and testing (I'll use an 80%:20% split here):
+```python
+import numpy
+
+row_count = x_data.shape[0]
+indices = numpy.indices([row_count])[0]
+numpy.random.shuffle(indices)
+x_training = x_data.take(indices[0:int(0.80*row_count)])
+y_training = y_data.take(indices[0:int(0.80*row_count)])
+x_testing = x_data.take(indices[int(0.80*row_count):row_count])
+y_testing = y_data.take(indices[int(0.80*row_count):row_count])
+```
+ Finally, build and train the model:
+ ```python
+ 
+ ```
