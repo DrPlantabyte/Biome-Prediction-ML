@@ -1,6 +1,11 @@
 #!/bin/bash
 ## Example:
 ## $ ./make_venv.sh env requirements.txt
+
+# exit when any command fails
+set -e
+
+# wrong number of arguments
 if [ "$#" -ne 2 ]; then
     echo "Wrong arguments. Usage:"
     echo "$0 venv_name requirements_file"
@@ -18,5 +23,8 @@ if test ! -d "$VENV_NAME"; then
 	pip install -r "$REQ_FILE"
 	pip freeze > "VENV_NAME"/requirements.txt
 	deactivate
+else
+	echo "Directory '$VENV_NAME' already exists. No action taken. Either delete this directory or use '$VENV_NAME/bin/pip install -r $REQ_FILE' instead."
+	exit 1
 fi
 
