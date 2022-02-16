@@ -1,5 +1,5 @@
-# Making a Biome Prediction Node Network Model
-In this project, my aim is to use Python machine learning libraries to create a node network model for predicting biome classification based on a limited set of environmental parameters, using freely available satellite data to train the model.
+# Making a Biome Prediction Artificial Neural Network
+In this project, my aim is to use Python machine learning libraries to create an articficial neural network model for predicting biome classification based on a limited set of environmental parameters, using freely available satellite data to train the model.
 
 ## What is a biome?
 Functionally speaking, a biome is the habitat created by the plants and geology in a given region. Forest, grassland, desert, and deep ocean are all examples of a biome. While there are many different ways of defining biomes, for this project I will be the International Geosphere-Biosphere Programme (IGBP) land cover classification system, which has 17 biome classifications:
@@ -22,12 +22,12 @@ Functionally speaking, a biome is the habitat created by the plants and geology 
 16. Barren
 17. Water bodies
 
-## What is a node network model?
-Similar to biological brains, node network machine learning models (aka artificial neural networks) are made of interconnected pieces, called nodes, which each perform a small calculation that is then passed on to another node. By playing with connections between the nodes, the machine learning algroithm is able to evolve the web of nodes from a useless heap into a decision tree that outputs a prediction in it's output node based on the states of the input nodes.
+## What is an artificial neural network?
+Similar to biological brains, artificial neural networks are made of interconnected pieces, called nodes, which each perform a small calculation that is then passed on to another node. By playing with the connections between the nodes, the machine learning algorithm is able to evolve the web of nodes from a useless heap into a decision tree that outputs a prediction in it's output node based on the states of the input nodes.
 
-One should not get too carried away by the comparison of node networks and biological brains. While the high-level principle is the same, biological neurons perform different kinds of calculations than machine learning nodes, and a typical animal brain has millions to trillions of neurons while most machine learning node networks are limited to a few hundred or a few thousand nodes. 
+One should not get too carried away by the comparison of artificial neural networks and biological brains. While the high-level principle is the same, biological neurons perform different kinds of calculations than machine learning nodes, and a typical animal brain has millions to trillions of neurons while most machine learning neural network are limited to a few thousand nodes. 
 
-## What will be the inputs and outpts?
+## What will be the inputs and outputs?
 The existing land cover maps already provide biome classification for any location on Earth. However, this is not very useful for hypotheticals, such as what will the landscape look like after another century of global warming? Or what might it have looked like in the past? Or what should the biome maps of Westeros or Middle Earth look like?
 
 Therefore my prediction model will only use easily predictable inputs: average yearly min and max temperature and total annual rainfall amount and standard deviation (to capture seasonality of rainfall). The input data will come from freely available satellite remote sensing data products.
@@ -36,7 +36,7 @@ Therefore my prediction model will only use easily predictable inputs: average y
 My strategy for building this biome prediction model is as follows:
 1. Download land cover classification, temperature, and rainfall data from NASA 
 2. Clean the data to put everything on the same scale and omit locations with missing data
-3. Train a classification node network, using 80% of data pixels for training and 20% for validation, then use the trained model to make a graph of biome classification as a function of min/max temp & rainfall
+3. Train a classification artificial neural network, using 80% of data pixels for training and 20% for validation, then use the trained model to make a graph of biome classification as a function of min/max temp & rainfall
 
 # Step 0: Setup
 
@@ -81,7 +81,7 @@ tensorflow
 pygdal
 ```
 
-Note that the python package for GDAL is very difficult and frustrating to install. I will not be detailing how to install GDAL here (it involves installing/compiling GDAL to your system first, then installing the matching version of pygdal from pip). If you're ever required to get GDAL with python bindings up and running in a virtual envirnment, you have my sympathies.
+Note that the python package for GDAL is very difficult and frustrating to install. I will not be detailing how to install GDAL here (it involves installing/compiling GDAL to your system first, then installing the matching version of pygdal from pip). If you're ever required to get GDAL with python bindings up and running in a virtual environment, you have my sympathies.
 
 After installation is complete, I create a PyCharm project and get to work on step 1: downloading the data.
 
@@ -119,7 +119,7 @@ def download_landcover_for_year(year):
 download_landcover_for_year(2002)
 ```
 
-I won't get the file to download. Instead, I'll get the `requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url` error message. Fortunately, there's a new `modis-tools` Python library available vai pip which handles the messy business of scraping MODIS data for us. 
+I won't get the file to download. Instead, I'll get the `requests.exceptions.HTTPError: 401 Client Error: Unauthorized for url` error message. Fortunately, there's a new `modis-tools` Python library available via pip which handles the messy business of scraping MODIS data for us. 
 
 ```python
 import os, sys, re, requests
@@ -174,7 +174,8 @@ def download_GPM_L3_product(short_name, version, year, month, dest_dirpath, user
 	print('Downloading %s to %s...' % (redirect.url, dest_filepath))
 	with http_session.get(redirect.url, auth=(username, password), stream=True) as r:
 		r.raise_for_status()
-		with open(dest_filepath, 'wb') as f:
+		with open(dest_filepath,
+ 'wb') as f:
 			for chunk in r.iter_content(chunk_size=1048576):
 				f.write(chunk)
 	print('...Download complete!')
@@ -188,7 +189,7 @@ for month in range(1, 13):
 
 ```
 
-Hooray! Data downloads! Note that for the GPM downloads to work, you must first add NASA GESDISC DATA ARCHIVE to your list of approved applications in Earth Data, otherwise teh files will contain html instead of satellite data.
+Hooray! Data downloads! Note that for the GPM downloads to work, you must first add NASA GESDISC DATA ARCHIVE to your list of approved applications in Earth Data, otherwise the files will contain html instead of satellite data.
 
 Finally, I decide to limit my data to 3 years from the start of 2015 to the end of 2017, so as not to completely fill my hard drive.
 
@@ -394,7 +395,7 @@ with h5py.File(sample_rainfall_file, 'r') as hdf:
 
 ```
 
-Note that to close a GDAL data file, you set the dataset variable to `None`. This is not a common resource management pattern in Python, but it's best not to fight the GDAL library.
+Note that to close a GDAL data file, you set the data set variable to `None`. This is not a common resource management pattern in Python, but it's best not to fight the GDAL library.
 
 Here's what the data looks like:
 
@@ -436,7 +437,8 @@ from osgeo import gdal
 
 data_dir = path.join('data')
 
-# calculate min and max temperatures
+# calculate min
+ and max temperatures
 min_temp_map = load_pickle(path.join(data_dir, 'min_temp_map.pickle'))
 max_temp_map = load_pickle(path.join(data_dir, 'max_temp_map.pickle'))
 if min_temp_map is None or max_temp_map is None:
@@ -643,7 +645,8 @@ x_testing = x_data.take(indices[int(0.80*row_count):row_count], axis=0)
 y_testing = y_data.take(indices[int(0.80*row_count):row_count], axis=0)
 ```
 
-Finally, time to build and train the model. I opt for the Keras sequential model with three layers of dense networks, just because this is one of the easier types of machine learning models to work with. If I revisit this to fine-tune the model, I could use a different kin of model, add more layers, add different kinds of layers, and change the parameters. For now, though, let's keep it simple:
+Finally, time to build and train the model. I opt for the Keras sequential model with three layers of dense networks, just because this is one of the easier types of machine
+ learning models to work with. If I revisit this to fine-tune the model, I could use a different kin of model, add more layers, add different kinds of layers, and change the parameters. For now, though, let's keep it simple:
 ```python
 import os, sys, numpy, pickle
 from pandas import DataFrame
