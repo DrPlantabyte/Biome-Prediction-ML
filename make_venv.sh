@@ -1,4 +1,6 @@
 #!/bin/bash
+## Example:
+## $ ./make_venv.sh env requirements.txt
 if [ "$#" -ne 2 ]; then
     echo "Wrong arguments. Usage:"
     echo "$0 venv_name requirements_file"
